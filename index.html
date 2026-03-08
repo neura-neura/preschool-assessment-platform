@@ -1,0 +1,134 @@
+﻿<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EDITOR DE EVALUACIONES</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Bitter:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <h1>EDITOR DE EVALUACIONES PREESCOLAR</h1>
+      <p>CONTROL DE CALIDAD, ESTADISTICAS Y EXPORTACION TXT</p>
+    </div>
+    <div class="status-wrap">
+      <span id="saveStatus" class="pill">SIN GUARDAR</span>
+      <span id="lastSaved" class="pill muted">SIN REGISTRO</span>
+    </div>
+  </header>
+
+  <section class="toolbar">
+    <button id="addStudentBtn" class="btn primary">AGREGAR ALUMNO</button>
+    <button id="duplicateStudentBtn" class="btn">DUPLICAR ALUMNO</button>
+    <button id="deleteStudentBtn" class="btn danger">BORRAR ALUMNO</button>
+    <button id="saveBtn" class="btn">GUARDAR</button>
+    <button id="normalizeAllBtn" class="btn">NORMALIZAR TODO</button>
+    <button id="exportProgressBtn" class="btn">EXPORTAR PROGRESO TXT</button>
+    <button id="downloadReportBtn" class="btn success">DESCARGAR REPORTE TXT</button>
+    <label class="btn file-btn" for="importFileInput">IMPORTAR TXT</label>
+    <input id="importFileInput" type="file" accept=".txt" hidden>
+  </section>
+
+  <section class="settings-bar">
+    <div class="settings-title">REGLAS GLOBALES DE TEXTO</div>
+    <label class="setting-item">
+      <input id="allowCommasToggle" type="checkbox" />
+      <span>ACEPTAR COMAS</span>
+    </label>
+    <label class="setting-item">
+      <input id="allowPunctuationToggle" type="checkbox" />
+      <span>ACEPTAR SIGNOS DE PUNTUACION</span>
+    </label>
+    <label class="setting-item">
+      <input id="forceUppercaseToggle" type="checkbox" />
+      <span>CAMBIAR TODO A MAYUSCULAS</span>
+    </label>
+    <label class="setting-item">
+      <input id="darkModeToggle" type="checkbox" />
+      <span>MODO OSCURO</span>
+    </label>
+  </section>
+
+  <main class="layout">
+    <aside class="students-panel">
+      <div class="panel-title-row">
+        <h2>ALUMNOS</h2>
+        <input id="searchStudent" type="text" placeholder="BUSCAR" />
+      </div>
+      <ul id="studentList" class="student-list"></ul>
+    </aside>
+
+    <section class="editor-panel">
+      <div class="student-head">
+        <label for="studentName">NOMBRE</label>
+        <input id="studentName" type="text" maxlength="120" />
+      </div>
+
+      <div id="fieldGrid" class="field-grid"></div>
+    </section>
+
+    <aside class="metrics-panel">
+      <h2>TABLERO DE CALIDAD</h2>
+      <div id="globalMetrics" class="metric-cards"></div>
+
+      <div class="card">
+        <h3>PALABRAS REPETIDAS</h3>
+        <div id="repeatedWords"></div>
+      </div>
+
+      <div class="card">
+        <h3>FRASES REPETIDAS</h3>
+        <div id="repeatedPhrases"></div>
+      </div>
+
+      <div class="card">
+        <h3>SIMILITUD ENTRE ALUMNOS</h3>
+        <div id="similarityList"></div>
+      </div>
+
+      <div class="card">
+        <h3>ERRORES DETECTADOS</h3>
+        <div id="issuesList"></div>
+      </div>
+
+      <div class="card">
+        <h3>ERRORES VALIDADOS</h3>
+        <div id="validatedIssuesList"></div>
+      </div>
+    </aside>
+  </main>
+
+  <template id="fieldCardTemplate">
+    <article class="field-card">
+      <div class="field-head">
+        <h3></h3>
+        <span class="field-badge"></span>
+      </div>
+      <textarea rows="4"></textarea>
+      <div class="field-meta"></div>
+      <div class="field-issues"></div>
+      <div class="field-actions">
+        <button type="button" class="mini-btn clean-btn">LIMPIAR TEXTO</button>
+        <button type="button" class="mini-btn validate-btn">VALIDAR ERRORES</button>
+      </div>
+    </article>
+  </template>
+
+  <dialog id="downloadSummaryDialog" class="summary-dialog">
+    <div class="summary-box">
+      <h3>RESUMEN PREVIO A DESCARGA</h3>
+      <div id="downloadSummaryBody" class="summary-body"></div>
+      <div class="summary-actions">
+        <button id="cancelDownloadBtn" class="btn" type="button">CANCELAR</button>
+        <button id="confirmDownloadBtn" class="btn success" type="button">CONFIRMAR DESCARGA</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script src="./app.js"></script>
+</body>
+</html>
