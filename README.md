@@ -1,44 +1,44 @@
-﻿# Editor de Evaluaciones Preescolar
+﻿# Preschool Assessment Editor
 
-Aplicacion web estatica para redactar, validar y exportar reportes de evaluacion en formato TXT.
+Static web app to draft, validate, and export preschool assessment reports in TXT format.
 
-## Archivos del proyecto
+## Project Files
 
-- `index.html`: estructura de la interfaz.
-- `styles.css`: estilos de la aplicacion.
-- `app.js`: logica de captura, validacion, guardado y exportacion.
+- `index.html`: app interface structure.
+- `styles.css`: application styles.
+- `app.js`: capture, validation, autosave, and export logic.
 
-## Funcionalidades
+## Features
 
-- Gestion de alumnos (agregar, duplicar, eliminar y buscar).
-- Edicion de 8 campos por alumno con reglas de longitud.
-- Normalizacion de texto (mayusculas, acentos, puntuacion, comas configurables).
-- Deteccion de errores y validacion manual de observaciones.
-- Analisis de repeticiones y similitud entre alumnos.
-- Guardado en `localStorage` y respaldo/importacion en TXT.
-- Exportacion de progreso y reporte final en TXT.
+- Student management (add, duplicate, delete, and search).
+- Editing for 8 fields per student with target length rules.
+- Text normalization (uppercase, accents, punctuation, and comma rules).
+- Error detection with manual validation flow.
+- Repetition and similarity analysis across students.
+- Progress saved in `localStorage` with TXT backup import/export.
+- Final report export to TXT.
 
-## Ejecucion local
+## Local Usage
 
-No requiere instalacion ni build.
+No installation or build step is required.
 
-1. Abre `index.html` directamente en el navegador.
-2. Opcional: sirve la carpeta con un servidor estatico.
+1. Open `index.html` directly in your browser.
+2. Optional: serve the folder with any static server.
 
-## Deploy en GitHub Pages
+## GitHub Pages Deployment
 
-1. Crea un repositorio privado y sube estos archivos:
+1. Push these files to your repository:
    - `index.html`
    - `styles.css`
    - `app.js`
    - `README.md`
    - `.gitignore`
-2. En GitHub abre `Settings > Pages`.
-3. En `Build and deployment`, selecciona `Deploy from a branch`.
-4. Elige la rama principal (`main` o la que uses) y la carpeta `/ (root)`.
-5. Guarda los cambios y espera la URL publica de Pages.
+2. In GitHub, open `Settings > Pages`.
+3. Under `Build and deployment`, select `Deploy from a branch`.
+4. Choose your main branch (`main` or equivalent) and `/ (root)`.
+5. Save and wait for the public Pages URL.
 
-## Nota de datos
+## Data Note
 
-La informacion capturada se guarda en el navegador del usuario (`localStorage`).
-Si cambias de equipo o navegador, exporta/importa TXT para conservar avances.
+Captured data is stored in the user's browser (`localStorage`).
+If you switch devices or browsers, export/import TXT backups to keep progress.
