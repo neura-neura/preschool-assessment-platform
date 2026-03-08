@@ -29,6 +29,7 @@
     <button id="normalizeAllBtn" class="btn">NORMALIZAR TODO</button>
     <button id="exportProgressBtn" class="btn">EXPORTAR PROGRESO TXT</button>
     <button id="exportIssuesBtn" class="btn">EXPORTAR ERRORES TXT</button>
+    <button id="aiHelpBtn" class="btn">AYUDA IA</button>
     <button id="downloadReportBtn" class="btn success">DESCARGAR REPORTE TXT</button>
     <label class="btn file-btn" for="importFileInput">IMPORTAR TXT</label>
     <input id="importFileInput" type="file" accept=".txt" hidden>
@@ -151,6 +152,23 @@
       <div class="summary-actions">
         <button id="cancelExportIssuesBtn" class="btn" type="button">CANCELAR</button>
         <button id="confirmExportIssuesBtn" class="btn success" type="button">DESCARGAR ERRORES TXT</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="aiHelpDialog" class="summary-dialog">
+    <div class="summary-box">
+      <h3>AYUDA PROMPT PARA IA</h3>
+      <div class="summary-body">
+        <p class="summary-note">
+          USA ESTE PROMPT COMO BASE, CAMBIA SOLO LA SECCION OBJETIVO
+          Y COPIALO PARA TU SIGUIENTE SOLICITUD A IA.
+        </p>
+        <textarea id="aiHelpText" class="help-textarea" readonly></textarea>
+      </div>
+      <div class="summary-actions">
+        <button id="closeAiHelpBtn" class="btn" type="button">CERRAR</button>
+        <button id="copyAiHelpBtn" class="btn success" type="button">COPIAR PROMPT</button>
       </div>
     </div>
   </dialog>

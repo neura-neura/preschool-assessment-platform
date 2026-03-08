@@ -59,6 +59,7 @@
     normalizeAllBtn: document.getElementById('normalizeAllBtn'),
     exportProgressBtn: document.getElementById('exportProgressBtn'),
     exportIssuesBtn: document.getElementById('exportIssuesBtn'),
+    aiHelpBtn: document.getElementById('aiHelpBtn'),
     downloadReportBtn: document.getElementById('downloadReportBtn'),
     importFileInput: document.getElementById('importFileInput'),
     allowCommasToggle: document.getElementById('allowCommasToggle'),
@@ -85,7 +86,11 @@
     includeValidatedErrors: document.getElementById('includeValidatedErrors'),
     exportIssuesStats: document.getElementById('exportIssuesStats'),
     cancelExportIssuesBtn: document.getElementById('cancelExportIssuesBtn'),
-    confirmExportIssuesBtn: document.getElementById('confirmExportIssuesBtn')
+    confirmExportIssuesBtn: document.getElementById('confirmExportIssuesBtn'),
+    aiHelpDialog: document.getElementById('aiHelpDialog'),
+    aiHelpText: document.getElementById('aiHelpText'),
+    closeAiHelpBtn: document.getElementById('closeAiHelpBtn'),
+    copyAiHelpBtn: document.getElementById('copyAiHelpBtn')
   };
 
   const state = {
@@ -1071,6 +1076,76 @@
     if (dom.exportIssuesDialog.open) dom.exportIssuesDialog.close();
   }
 
+  function closeAiHelpDialog() {
+    if (dom.aiHelpDialog.open) dom.aiHelpDialog.close();
+  }
+
+  function aiHelpPromptTemplate() {
+    return [
+      'Vas a corregir un archivo de progreso de evaluaciones usando un archivo de errores.',
+      '',
+      'ENTRADAS:',
+      '1) progreso_evaluaciones.txt',
+      '2) errores_*.txt (detectados, validados o ambos)',
+      '',
+      'OBJETIVO:',
+      '[ESCRIBE AQUI TU OBJETIVO ESPECIFICO]',
+      '',
+      'REGLAS ESTRICTAS:',
+      '- Devuelve SOLO un bloque TXT final listo para importar en la app.',
+      '- Conserva exactamente el formato de backup.',
+      '- No cambies nombres de alumnos ni el orden.',
+      '- No elimines alumnos ni campos.',
+      '- Respeta las reglas globales SETTING_ALLOW_COMMAS, SETTING_ALLOW_PUNCTUATION, SETTING_FORCE_UPPERCASE.',
+      '- Corrige con precision cada error asociado a alumno y campo segun el archivo de errores.',
+      '- Si corriges un campo, ajusta su texto para que cumpla longitud y calidad.',
+      '- Mantener texto natural pedagogico y coherente con el campo.',
+      '- No agregues explicacion, solo el TXT final.',
+      '',
+      'FORMATO OBLIGATORIO DE BACKUP:',
+      '# EVALUADOR_PREESCOLAR_BACKUP_V1',
+      'SETTING_...',
+      'ALUMNO: ...',
+      'LENGUAJES: ...',
+      'RECOMENDACIONES_LENGUAJES: ...',
+      'SABERES_Y_PENSAMIENTO_CIENTIFICO: ...',
+      'RECOMENDACIONES_SABERES_Y_PENSAMIENTO_CIENTIFICO: ...',
+      'ETICA_NATURALEZA_Y_SOCIEDADES: ...',
+      'RECOMENDACIONES_ETICA_NATURALEZA_Y_SOCIEDADES: ...',
+      'DE_LO_HUMANO_Y_LO_COMUNITARIO: ...',
+      'RECOMENDACIONES_DE_LO_HUMANO_Y_LO_COMUNITARIO: ...',
+      'VALIDACIONES_<campo>: ...',
+      '---',
+      '',
+      'EJEMPLOS DE OBJETIVO PARA DIFERENTES COSAS:',
+      '1. Corregir solo ERRORES DETECTADOS. Ignorar ERRORES VALIDADOS.',
+      '2. Corregir solo LONGITUD FUERA DE RANGO en todos los campos.',
+      '3. Corregir caracteres no permitidos, puntuacion prohibida y mayusculas; no tocar contenido semantico.',
+      '4. Resolver duplicados exactos, frases repetidas y similitudes altas entre alumnos manteniendo el sentido individual.',
+      '5. Corregir todo (detectados y validados), dejando todos los campos en estado OK con el minimo cambio posible.',
+      '6. Corregir solo recomendaciones (rec_*) y no modificar campos formativos.'
+    ].join('\n');
+  }
+
+  function openAiHelpDialog() {
+    dom.aiHelpText.value = aiHelpPromptTemplate();
+    dom.aiHelpText.scrollTop = 0;
+    dom.aiHelpDialog.showModal();
+  }
+
+  async function copyAiHelpPrompt() {
+    const text = dom.aiHelpText.value || aiHelpPromptTemplate();
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      flash('PROMPT COPIADO');
+      return;
+    }
+    dom.aiHelpText.focus();
+    dom.aiHelpText.select();
+    document.execCommand('copy');
+    flash('PROMPT COPIADO');
+  }
+
   function exportValue(value) {
     return String(value || '')
       .replaceAll('\\', '\\\\')
@@ -1590,6 +1665,7 @@
     });
 
     dom.exportIssuesBtn.addEventListener('click', openExportIssuesDialog);
+    dom.aiHelpBtn.addEventListener('click', openAiHelpDialog);
 
     dom.downloadReportBtn.addEventListener('click', () => {
       openDownloadSummary();
@@ -1610,6 +1686,12 @@
       const txt = buildErrorsExportText(includeDetected, includeValidated);
       downloadTxt(exportIssuesFilename(includeDetected, includeValidated), txt);
       flash('ERRORES EXPORTADOS');
+    });
+    dom.closeAiHelpBtn.addEventListener('click', closeAiHelpDialog);
+    dom.copyAiHelpBtn.addEventListener('click', () => {
+      copyAiHelpPrompt().catch(() => {
+        alert('NO FUE POSIBLE COPIAR AUTOMATICAMENTE. SELECCIONA EL TEXTO Y COPIALO MANUALMENTE.');
+      });
     });
 
     dom.cancelDownloadBtn.addEventListener('click', closeDownloadSummary);
@@ -1703,6 +1785,13 @@
       const inside = ev.clientX >= rect.left && ev.clientX <= rect.right
         && ev.clientY >= rect.top && ev.clientY <= rect.bottom;
       if (!inside) closeExportIssuesDialog();
+    });
+
+    dom.aiHelpDialog.addEventListener('click', (ev) => {
+      const rect = dom.aiHelpDialog.getBoundingClientRect();
+      const inside = ev.clientX >= rect.left && ev.clientX <= rect.right
+        && ev.clientY >= rect.top && ev.clientY <= rect.bottom;
+      if (!inside) closeAiHelpDialog();
     });
 
     window.addEventListener('beforeunload', (ev) => {

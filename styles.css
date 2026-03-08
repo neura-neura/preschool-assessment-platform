@@ -503,6 +503,21 @@ body.dark-mode {
   line-height: 1.35;
 }
 
+.help-textarea {
+  width: 100%;
+  min-height: 52vh;
+  border: 1px solid #d8cfbe;
+  border-radius: 8px;
+  padding: 10px;
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: #1f2a2d;
+  background: #fffdfa;
+  white-space: pre;
+  resize: vertical;
+}
+
 .export-options-body {
   display: flex;
   flex-direction: column;
@@ -682,6 +697,12 @@ body.dark-mode .token {
 body.dark-mode .summary-note,
 body.dark-mode .export-option {
   color: #d5ccba;
+}
+
+body.dark-mode .help-textarea {
+  background: #1f282d;
+  color: #f2ece0;
+  border-color: #4a5d62;
 }
 
 body.dark-mode .summary-dialog::backdrop {
