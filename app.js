@@ -59,6 +59,7 @@
     normalizeAllBtn: document.getElementById('normalizeAllBtn'),
     exportProgressBtn: document.getElementById('exportProgressBtn'),
     exportIssuesBtn: document.getElementById('exportIssuesBtn'),
+    exportCurrentStudentIssuesBtn: document.getElementById('exportCurrentStudentIssuesBtn'),
     aiHelpBtn: document.getElementById('aiHelpBtn'),
     downloadReportBtn: document.getElementById('downloadReportBtn'),
     importFileInput: document.getElementById('importFileInput'),
@@ -1082,6 +1083,8 @@
 
   function aiHelpPromptTemplate() {
     return [
+      'PROMPT 1: CORRECCION GENERAL (TODOS LOS ALUMNOS)',
+      '',
       'Vas a corregir un archivo de progreso de evaluaciones usando un archivo de errores.',
       '',
       'ENTRADAS:',
@@ -1123,7 +1126,34 @@
       '3. Corregir caracteres no permitidos, puntuacion prohibida y mayusculas; no tocar contenido semantico.',
       '4. Resolver duplicados exactos, frases repetidas y similitudes altas entre alumnos manteniendo el sentido individual.',
       '5. Corregir todo (detectados y validados), dejando todos los campos en estado OK con el minimo cambio posible.',
-      '6. Corregir solo recomendaciones (rec_*) y no modificar campos formativos.'
+      '6. Corregir solo recomendaciones (rec_*) y no modificar campos formativos.',
+      '',
+      '========================================',
+      'PROMPT 2: CORRECCION DE UN SOLO ALUMNO',
+      '========================================',
+      '',
+      'Vas a corregir SOLO UN ALUMNO usando estos archivos:',
+      '1) progreso_evaluaciones.txt',
+      '2) errores_alumno_*.txt',
+      '',
+      'OBJETIVO:',
+      '[ESCRIBE AQUI TU OBJETIVO ESPECIFICO PARA ESE ALUMNO]',
+      '',
+      'REGLAS ESTRICTAS:',
+      '- Corrige SOLO el alumno que aparece en errores_alumno_*.txt.',
+      '- No cambies, no borres y no reordenes ningun otro alumno.',
+      '- Devuelve SOLO un bloque TXT final listo para importar en la app.',
+      '- Conserva exactamente el formato de backup.',
+      '- Respeta las reglas globales SETTING_ALLOW_COMMAS, SETTING_ALLOW_PUNCTUATION, SETTING_FORCE_UPPERCASE.',
+      '- Asegura que ese alumno quede corregido en longitud, formato y errores de calidad solicitados.',
+      '- No agregues explicacion, solo el TXT final.',
+      '',
+      'EJEMPLOS DE OBJETIVO (UN SOLO ALUMNO):',
+      '1. Corregir todo el alumno objetivo con el minimo cambio posible y dejar el resto intacto.',
+      '2. Corregir solo LONGITUD FUERA DE RANGO del alumno objetivo.',
+      '3. Corregir solo errores de puntuacion, caracteres y mayusculas del alumno objetivo.',
+      '4. Corregir duplicados y frases repetidas del alumno objetivo sin tocar otros alumnos.',
+      '5. Corregir unicamente recomendaciones (rec_*) del alumno objetivo.'
     ].join('\n');
   }
 
@@ -1166,6 +1196,18 @@
     return 'errores_validados.txt';
   }
 
+  function filenameSafeToken(text) {
+    const clean = removeAccentsKeepEnye(text || '')
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '');
+    return clean || 'ALUMNO';
+  }
+
+  function currentStudentIssuesFilename(studentName) {
+    return `errores_alumno_${filenameSafeToken(studentName)}.txt`;
+  }
+
   function updateExportIssuesStats() {
     const m = buildMetrics();
     const includeDetected = Boolean(dom.includeDetectedErrors.checked);
@@ -1190,12 +1232,22 @@
     dom.exportIssuesDialog.showModal();
   }
 
-  function buildErrorsExportText(includeDetected, includeValidated) {
+  function buildErrorsExportText(includeDetected, includeValidated, onlyStudentId = null) {
     const m = buildMetrics();
     const duplicateData = m.duplicateData;
     const scope = issueScopeLabel(includeDetected, includeValidated);
     const allSimilarity = computeSimilarity(null);
     const similarityByStudent = new Map();
+    const exportStudents = onlyStudentId
+      ? state.students.filter((st) => String(st.id) === String(onlyStudentId))
+      : state.students.slice();
+    const exportStudentIds = new Set(exportStudents.map((st) => String(st.id)));
+    const totalDetectedIncluded = includeDetected
+      ? m.issuesActive.filter((item) => exportStudentIds.has(String(item.studentId))).length
+      : 0;
+    const totalValidatedIncluded = includeValidated
+      ? m.validatedRecords.filter((item) => exportStudentIds.has(String(item.studentId))).length
+      : 0;
 
     (allSimilarity || []).forEach((row) => {
       if (!row || !row.aId || !row.bId) return;
@@ -1222,9 +1274,10 @@
       `EXPORT_SCOPE: ${scope}`,
       `INCLUDE_DETECTED: ${includeDetected ? 1 : 0}`,
       `INCLUDE_VALIDATED: ${includeValidated ? 1 : 0}`,
-      `TOTAL_STUDENTS: ${m.totalStudents}`,
-      `TOTAL_DETECTED_INCLUDED: ${includeDetected ? m.issuesActive.length : 0}`,
-      `TOTAL_VALIDATED_INCLUDED: ${includeValidated ? m.validatedRecords.length : 0}`,
+      `TOTAL_STUDENTS: ${exportStudents.length}`,
+      `TOTAL_STUDENTS_IN_APP: ${m.totalStudents}`,
+      `TOTAL_DETECTED_INCLUDED: ${totalDetectedIncluded}`,
+      `TOTAL_VALIDATED_INCLUDED: ${totalValidatedIncluded}`,
       `SETTING_ALLOW_COMMAS: ${state.settings.allowCommas ? 1 : 0}`,
       `SETTING_ALLOW_PUNCTUATION: ${state.settings.allowPunctuation ? 1 : 0}`,
       `SETTING_FORCE_UPPERCASE: ${state.settings.forceUppercase ? 1 : 0}`,
@@ -1232,7 +1285,7 @@
       ''
     ];
 
-    state.students.forEach((st, studentIndex) => {
+    exportStudents.forEach((st, studentIndex) => {
       const studentId = String(st.id);
       const studentName = sanitizeName(st.name || 'ALUMNO');
       let rangeOk = 0;
@@ -1443,6 +1496,17 @@
     });
 
     return `${lines.join('\n').trimEnd()}\n`;
+  }
+
+  function exportCurrentStudentIssues() {
+    const selected = getSelectedStudent();
+    if (!selected) {
+      alert('NO HAY ALUMNO SELECCIONADO.');
+      return;
+    }
+    const txt = buildErrorsExportText(true, true, selected.id);
+    downloadTxt(currentStudentIssuesFilename(selected.name), txt);
+    flash('ERRORES DEL ALUMNO ACTUAL EXPORTADOS');
   }
 
   function renderAll() {
@@ -1665,6 +1729,7 @@
     });
 
     dom.exportIssuesBtn.addEventListener('click', openExportIssuesDialog);
+    dom.exportCurrentStudentIssuesBtn.addEventListener('click', exportCurrentStudentIssues);
     dom.aiHelpBtn.addEventListener('click', openAiHelpDialog);
 
     dom.downloadReportBtn.addEventListener('click', () => {
