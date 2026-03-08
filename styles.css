@@ -496,6 +496,37 @@ body.dark-mode {
   background: #fff;
 }
 
+.summary-note {
+  margin: 0 0 12px;
+  font-size: 0.78rem;
+  color: #4d5f63;
+  line-height: 1.35;
+}
+
+.export-options-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.export-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.export-option input[type="checkbox"] {
+  inline-size: 16px;
+  block-size: 16px;
+}
+
+.export-summary-grid {
+  margin-top: 4px;
+  margin-bottom: 0;
+}
+
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(120px, 1fr));
@@ -646,6 +677,11 @@ body.dark-mode .token {
   background: #2f3b40;
   border-color: #566a70;
   color: #e9e2d6;
+}
+
+body.dark-mode .summary-note,
+body.dark-mode .export-option {
+  color: #d5ccba;
 }
 
 body.dark-mode .summary-dialog::backdrop {

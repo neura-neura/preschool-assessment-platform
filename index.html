@@ -28,6 +28,7 @@
     <button id="saveBtn" class="btn">GUARDAR</button>
     <button id="normalizeAllBtn" class="btn">NORMALIZAR TODO</button>
     <button id="exportProgressBtn" class="btn">EXPORTAR PROGRESO TXT</button>
+    <button id="exportIssuesBtn" class="btn">EXPORTAR ERRORES TXT</button>
     <button id="downloadReportBtn" class="btn success">DESCARGAR REPORTE TXT</button>
     <label class="btn file-btn" for="importFileInput">IMPORTAR TXT</label>
     <input id="importFileInput" type="file" accept=".txt" hidden>
@@ -125,6 +126,31 @@
       <div class="summary-actions">
         <button id="cancelDownloadBtn" class="btn" type="button">CANCELAR</button>
         <button id="confirmDownloadBtn" class="btn success" type="button">CONFIRMAR DESCARGA</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="exportIssuesDialog" class="summary-dialog">
+    <div class="summary-box">
+      <h3>EXPORTAR ERRORES</h3>
+      <div class="summary-body export-options-body">
+        <p class="summary-note">
+          SELECCIONA LOS TIPOS DE ERRORES A INCLUIR EN EL TXT.
+          POR DEFECTO SE EXPORTAN DETECTADOS Y VALIDADOS.
+        </p>
+        <label class="export-option">
+          <input id="includeDetectedErrors" type="checkbox" checked />
+          <span>INCLUIR ERRORES DETECTADOS (ACTIVOS)</span>
+        </label>
+        <label class="export-option">
+          <input id="includeValidatedErrors" type="checkbox" checked />
+          <span>INCLUIR ERRORES VALIDADOS</span>
+        </label>
+        <div id="exportIssuesStats" class="summary-grid export-summary-grid"></div>
+      </div>
+      <div class="summary-actions">
+        <button id="cancelExportIssuesBtn" class="btn" type="button">CANCELAR</button>
+        <button id="confirmExportIssuesBtn" class="btn success" type="button">DESCARGAR ERRORES TXT</button>
       </div>
     </div>
   </dialog>

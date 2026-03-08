@@ -58,6 +58,7 @@
     saveBtn: document.getElementById('saveBtn'),
     normalizeAllBtn: document.getElementById('normalizeAllBtn'),
     exportProgressBtn: document.getElementById('exportProgressBtn'),
+    exportIssuesBtn: document.getElementById('exportIssuesBtn'),
     downloadReportBtn: document.getElementById('downloadReportBtn'),
     importFileInput: document.getElementById('importFileInput'),
     allowCommasToggle: document.getElementById('allowCommasToggle'),
@@ -78,7 +79,13 @@
     downloadSummaryDialog: document.getElementById('downloadSummaryDialog'),
     downloadSummaryBody: document.getElementById('downloadSummaryBody'),
     cancelDownloadBtn: document.getElementById('cancelDownloadBtn'),
-    confirmDownloadBtn: document.getElementById('confirmDownloadBtn')
+    confirmDownloadBtn: document.getElementById('confirmDownloadBtn'),
+    exportIssuesDialog: document.getElementById('exportIssuesDialog'),
+    includeDetectedErrors: document.getElementById('includeDetectedErrors'),
+    includeValidatedErrors: document.getElementById('includeValidatedErrors'),
+    exportIssuesStats: document.getElementById('exportIssuesStats'),
+    cancelExportIssuesBtn: document.getElementById('cancelExportIssuesBtn'),
+    confirmExportIssuesBtn: document.getElementById('confirmExportIssuesBtn')
   };
 
   const state = {
@@ -832,7 +839,7 @@
     };
   }
 
-  function computeSimilarity() {
+  function computeSimilarity(limit = 10) {
     const rows = [];
     const vectors = state.students.map((st) => {
       const set = new Set(
@@ -854,13 +861,16 @@
         const union = new Set([...a.set, ...b.set]).size || 1;
         const score = inter / union;
         if (score >= 0.26) {
-          rows.push({ a: a.name, b: b.name, score });
+          rows.push({ a: a.name, b: b.name, aId: a.id, bId: b.id, score });
         }
       }
     }
 
     rows.sort((x, y) => y.score - x.score);
-    return rows.slice(0, 10);
+    if (typeof limit === 'number' && Number.isFinite(limit) && limit >= 0) {
+      return rows.slice(0, limit);
+    }
+    return rows;
   }
 
   function pickRepeatedForStudent(items, studentId) {
@@ -1055,6 +1065,309 @@
 
   function closeDownloadSummary() {
     if (dom.downloadSummaryDialog.open) dom.downloadSummaryDialog.close();
+  }
+
+  function closeExportIssuesDialog() {
+    if (dom.exportIssuesDialog.open) dom.exportIssuesDialog.close();
+  }
+
+  function exportValue(value) {
+    return String(value || '')
+      .replaceAll('\\', '\\\\')
+      .replaceAll('|', '\\|')
+      .replace(/\r?\n/g, ' ')
+      .trim();
+  }
+
+  function issueScopeLabel(includeDetected, includeValidated) {
+    if (includeDetected && includeValidated) return 'BOTH';
+    if (includeDetected) return 'DETECTED_ONLY';
+    return 'VALIDATED_ONLY';
+  }
+
+  function exportIssuesFilename(includeDetected, includeValidated) {
+    if (includeDetected && includeValidated) return 'errores_detectados_y_validados.txt';
+    if (includeDetected) return 'errores_detectados.txt';
+    return 'errores_validados.txt';
+  }
+
+  function updateExportIssuesStats() {
+    const m = buildMetrics();
+    const includeDetected = Boolean(dom.includeDetectedErrors.checked);
+    const includeValidated = Boolean(dom.includeValidatedErrors.checked);
+    const selectedDetected = includeDetected ? m.issuesActive.length : 0;
+    const selectedValidated = includeValidated ? m.validatedRecords.length : 0;
+
+    dom.exportIssuesStats.innerHTML = `
+      <div class="summary-stat">ALUMNOS<b>${m.totalStudents}</b></div>
+      <div class="summary-stat">ERRORES DETECTADOS<b>${m.issuesActive.length}</b></div>
+      <div class="summary-stat">ERRORES VALIDADOS<b>${m.validatedRecords.length}</b></div>
+      <div class="summary-stat">SE EXPORTAN DETECTADOS<b>${selectedDetected}</b></div>
+      <div class="summary-stat">SE EXPORTAN VALIDADOS<b>${selectedValidated}</b></div>
+      <div class="summary-stat">TOTAL A EXPORTAR<b>${selectedDetected + selectedValidated}</b></div>
+    `;
+  }
+
+  function openExportIssuesDialog() {
+    dom.includeDetectedErrors.checked = true;
+    dom.includeValidatedErrors.checked = true;
+    updateExportIssuesStats();
+    dom.exportIssuesDialog.showModal();
+  }
+
+  function buildErrorsExportText(includeDetected, includeValidated) {
+    const m = buildMetrics();
+    const duplicateData = m.duplicateData;
+    const scope = issueScopeLabel(includeDetected, includeValidated);
+    const allSimilarity = computeSimilarity(null);
+    const similarityByStudent = new Map();
+
+    (allSimilarity || []).forEach((row) => {
+      if (!row || !row.aId || !row.bId) return;
+      const aId = String(row.aId);
+      const bId = String(row.bId);
+      if (!similarityByStudent.has(aId)) similarityByStudent.set(aId, []);
+      if (!similarityByStudent.has(bId)) similarityByStudent.set(bId, []);
+      similarityByStudent.get(aId).push({
+        otherId: bId,
+        otherName: row.b,
+        score: row.score
+      });
+      similarityByStudent.get(bId).push({
+        otherId: aId,
+        otherName: row.a,
+        score: row.score
+      });
+    });
+
+    const lines = [
+      '# EVALUADOR_PREESCOLAR_ERROR_EXPORT_V1',
+      `# FECHA: ${new Date().toISOString()}`,
+      '# FORMATO: BLOQUES POR ALUMNO Y CAMPO PARA PROCESAMIENTO IA',
+      `EXPORT_SCOPE: ${scope}`,
+      `INCLUDE_DETECTED: ${includeDetected ? 1 : 0}`,
+      `INCLUDE_VALIDATED: ${includeValidated ? 1 : 0}`,
+      `TOTAL_STUDENTS: ${m.totalStudents}`,
+      `TOTAL_DETECTED_INCLUDED: ${includeDetected ? m.issuesActive.length : 0}`,
+      `TOTAL_VALIDATED_INCLUDED: ${includeValidated ? m.validatedRecords.length : 0}`,
+      `SETTING_ALLOW_COMMAS: ${state.settings.allowCommas ? 1 : 0}`,
+      `SETTING_ALLOW_PUNCTUATION: ${state.settings.allowPunctuation ? 1 : 0}`,
+      `SETTING_FORCE_UPPERCASE: ${state.settings.forceUppercase ? 1 : 0}`,
+      `SETTING_DARK_MODE: ${state.settings.darkMode ? 1 : 0}`,
+      ''
+    ];
+
+    state.students.forEach((st, studentIndex) => {
+      const studentId = String(st.id);
+      const studentName = sanitizeName(st.name || 'ALUMNO');
+      let rangeOk = 0;
+      let rangeOkWithValidated = 0;
+      let descWords = 0;
+      let recWords = 0;
+      let totalWords = 0;
+      let forbiddenPunctuationFields = 0;
+      let forbiddenCharsFields = 0;
+
+      const fieldRows = [];
+      const exactDuplicateRows = [];
+
+      FIELD_DEFS.forEach((def) => {
+        const text = st.fields[def.key] || '';
+        const validation = validateField(text, def, state.settings);
+        const allIssues = collectFieldIssues(st, def, duplicateData);
+        const activeIssues = getActiveIssues(st, def.key, allIssues);
+        const validatedCodes = getValidatedCodes(st, def.key);
+        const issueByCode = new Map(allIssues.map((issue) => [issue.code, issue]));
+        const validatedIssues = validatedCodes.map((code) => {
+          const issue = issueByCode.get(code);
+          return {
+            code,
+            message: issue ? issue.message : (ISSUE_LABELS[code] || code),
+            activeNow: Boolean(issue)
+          };
+        });
+
+        const isInRange = validation.chars >= def.min && validation.chars <= def.max;
+        if (isInRange) rangeOk += 1;
+        if (isInRange || validatedCodes.includes('LENGTH_OUT_RANGE')) rangeOkWithValidated += 1;
+        if (def.type === 'desc') descWords += validation.words;
+        else recWords += validation.words;
+        totalWords += validation.words;
+        if (hasForbiddenPunctuation(text, state.settings)) forbiddenPunctuationFields += 1;
+        if (hasForbiddenCharacters(text, state.settings)) forbiddenCharsFields += 1;
+
+        const normalized = normalizeForAnalysis(text);
+        const exactCount = normalized ? (duplicateData.exact.get(normalized) || 0) : 0;
+        if (normalized && exactCount > 1) {
+          const related = compactOccurrenceList(duplicateData.exactDetails.get(normalized) || [])
+            .filter((occ) => !(String(occ.studentId) === studentId && occ.fieldKey === def.key));
+          exactDuplicateRows.push({
+            fieldKey: def.key,
+            fieldTitle: def.title,
+            duplicateCount: exactCount,
+            related
+          });
+        }
+
+        fieldRows.push({
+          def,
+          text,
+          validation,
+          isInRange,
+          activeIssues,
+          validatedIssues
+        });
+      });
+
+      const repeatedWords = [...duplicateData.wordMap.entries()]
+        .filter(([, totalCount]) => totalCount > 1)
+        .map(([term, totalCount]) => {
+          const allOccurrences = compactOccurrenceList(duplicateData.wordDetails.get(term) || []);
+          const ownOccurrences = allOccurrences.filter((occ) => String(occ.studentId) === studentId);
+          if (!ownOccurrences.length) return null;
+          return {
+            term,
+            totalCount,
+            ownOccurrences,
+            ownCount: ownOccurrences.length
+          };
+        })
+        .filter(Boolean)
+        .sort((a, b) => b.totalCount - a.totalCount || b.ownCount - a.ownCount || a.term.localeCompare(b.term));
+
+      const repeatedPhrases = [...duplicateData.phraseMap.entries()]
+        .filter(([, totalCount]) => totalCount > 1)
+        .map(([term, totalCount]) => {
+          const allOccurrences = compactOccurrenceList(duplicateData.phraseDetails.get(term) || []);
+          const ownOccurrences = allOccurrences.filter((occ) => String(occ.studentId) === studentId);
+          if (!ownOccurrences.length) return null;
+          return {
+            term,
+            totalCount,
+            ownOccurrences,
+            ownCount: ownOccurrences.length
+          };
+        })
+        .filter(Boolean)
+        .sort((a, b) => b.totalCount - a.totalCount || b.ownCount - a.ownCount || a.term.localeCompare(b.term));
+
+      const similarityRows = (similarityByStudent.get(studentId) || [])
+        .slice()
+        .sort((a, b) => b.score - a.score);
+
+      const detectedCount = fieldRows.reduce((sum, row) => sum + row.activeIssues.length, 0);
+      const validatedCount = fieldRows.reduce((sum, row) => sum + row.validatedIssues.length, 0);
+
+      lines.push(`ALUMNO_INICIO: ${studentIndex + 1}`);
+      lines.push(`ALUMNO_ID: ${exportValue(studentId)}`);
+      lines.push(`ALUMNO_NOMBRE: ${exportValue(studentName)}`);
+      lines.push(`CALIDAD_CAMPOS_TOTALES: ${FIELD_DEFS.length}`);
+      lines.push(`CALIDAD_CAMPOS_EN_RANGO: ${rangeOk}/${FIELD_DEFS.length}`);
+      lines.push(`CALIDAD_CAMPOS_EN_RANGO_CON_VALIDADOS: ${rangeOkWithValidated}/${FIELD_DEFS.length}`);
+      lines.push(`CALIDAD_PALABRAS_CAMPOS: ${descWords}`);
+      lines.push(`CALIDAD_PALABRAS_RECOMENDACIONES: ${recWords}`);
+      lines.push(`CALIDAD_PALABRAS_TOTALES: ${totalWords}`);
+      lines.push(`CALIDAD_CAMPOS_CON_SIGNOS_NO_PERMITIDOS: ${forbiddenPunctuationFields}`);
+      lines.push(`CALIDAD_CAMPOS_CON_CARACTERES_NO_PERMITIDOS: ${forbiddenCharsFields}`);
+      lines.push(`CALIDAD_ERRORES_DETECTADOS_INCLUIDOS: ${includeDetected ? detectedCount : 0}`);
+      lines.push(`CALIDAD_ERRORES_VALIDADOS_INCLUIDOS: ${includeValidated ? validatedCount : 0}`);
+      lines.push(`CALIDAD_DUPLICADOS_EXACTOS_EN_ALUMNO: ${exactDuplicateRows.length}`);
+      lines.push(`CALIDAD_PALABRAS_REPETIDAS_ASOCIADAS: ${repeatedWords.length}`);
+      lines.push(`CALIDAD_FRASES_REPETIDAS_ASOCIADAS: ${repeatedPhrases.length}`);
+      lines.push(`CALIDAD_SIMILITUDES_ALTAS_ASOCIADAS: ${similarityRows.length}`);
+      lines.push(`SECCION_ERRORES_DETECTADOS_INCLUIDA: ${includeDetected ? 1 : 0}`);
+      lines.push(`SECCION_ERRORES_VALIDADOS_INCLUIDA: ${includeValidated ? 1 : 0}`);
+      lines.push('');
+
+      fieldRows.forEach((row, fieldIndex) => {
+        lines.push(`CAMPO_INICIO: ${fieldIndex + 1}`);
+        lines.push(`CAMPO_KEY: ${row.def.key}`);
+        lines.push(`CAMPO_TITULO: ${exportValue(row.def.title)}`);
+        lines.push(`CAMPO_TIPO: ${row.def.type}`);
+        lines.push(`CAMPO_TEXTO_ACTUAL: ${exportValue(row.text)}`);
+        lines.push(`CAMPO_CARACTERES: ${row.validation.chars}`);
+        lines.push(`CAMPO_PALABRAS: ${row.validation.words}`);
+        lines.push(`CAMPO_RANGO_MIN: ${row.def.min}`);
+        lines.push(`CAMPO_RANGO_MAX: ${row.def.max}`);
+        lines.push(`CAMPO_EN_RANGO: ${row.isInRange ? 1 : 0}`);
+        lines.push(`CAMPO_ERRORES_DETECTADOS_TOTALES: ${row.activeIssues.length}`);
+        lines.push(`CAMPO_ERRORES_VALIDADOS_TOTALES: ${row.validatedIssues.length}`);
+
+        if (includeDetected) {
+          if (!row.activeIssues.length) {
+            lines.push('ERROR_DETECTADO: NONE');
+          } else {
+            row.activeIssues.forEach((issue) => {
+              lines.push(`ERROR_DETECTADO: CODE=${issue.code}|MENSAJE=${exportValue(issue.message)}`);
+            });
+          }
+        }
+
+        if (includeValidated) {
+          if (!row.validatedIssues.length) {
+            lines.push('ERROR_VALIDADO: NONE');
+          } else {
+            row.validatedIssues.forEach((issue) => {
+              lines.push(`ERROR_VALIDADO: CODE=${issue.code}|MENSAJE=${exportValue(issue.message)}|ACTIVO_AHORA=${issue.activeNow ? 1 : 0}`);
+            });
+          }
+        }
+
+        lines.push('CAMPO_FIN: 1');
+        lines.push('');
+      });
+
+      lines.push('SECCION_DUPLICADOS_EXACTOS_INICIO: 1');
+      if (!exactDuplicateRows.length) {
+        lines.push('DUPLICADO_EXACTO: NONE');
+      } else {
+        exactDuplicateRows.forEach((item) => {
+          const related = item.related.map((occ) => `${exportValue(occ.studentName)}::${occ.fieldKey}::${exportValue(occ.fieldTitle)}`);
+          lines.push(`DUPLICADO_EXACTO: CAMPO=${item.fieldKey}|TITULO=${exportValue(item.fieldTitle)}|COINCIDENCIAS=${item.duplicateCount}|RELACIONADOS=${related.length ? related.join(';') : 'NONE'}`);
+        });
+      }
+      lines.push('SECCION_DUPLICADOS_EXACTOS_FIN: 1');
+      lines.push('');
+
+      lines.push('SECCION_PALABRAS_REPETIDAS_INICIO: 1');
+      if (!repeatedWords.length) {
+        lines.push('PALABRA_REPETIDA: NONE');
+      } else {
+        repeatedWords.forEach((item) => {
+          const fields = item.ownOccurrences.map((occ) => `${occ.fieldKey}:${exportValue(occ.fieldTitle)}`).join(';');
+          lines.push(`PALABRA_REPETIDA: TERMINO=${exportValue(item.term)}|OCURRENCIAS_GLOBALES=${item.totalCount}|OCURRENCIAS_ALUMNO=${item.ownCount}|CAMPOS=${fields}`);
+        });
+      }
+      lines.push('SECCION_PALABRAS_REPETIDAS_FIN: 1');
+      lines.push('');
+
+      lines.push('SECCION_FRASES_REPETIDAS_INICIO: 1');
+      if (!repeatedPhrases.length) {
+        lines.push('FRASE_REPETIDA: NONE');
+      } else {
+        repeatedPhrases.forEach((item) => {
+          const fields = item.ownOccurrences.map((occ) => `${occ.fieldKey}:${exportValue(occ.fieldTitle)}`).join(';');
+          lines.push(`FRASE_REPETIDA: TERMINO=${exportValue(item.term)}|OCURRENCIAS_GLOBALES=${item.totalCount}|OCURRENCIAS_ALUMNO=${item.ownCount}|CAMPOS=${fields}`);
+        });
+      }
+      lines.push('SECCION_FRASES_REPETIDAS_FIN: 1');
+      lines.push('');
+
+      lines.push('SECCION_SIMILITUD_INICIO: 1');
+      if (!similarityRows.length) {
+        lines.push('SIMILITUD_ALTA: NONE');
+      } else {
+        similarityRows.forEach((item) => {
+          lines.push(`SIMILITUD_ALTA: CON_ID=${exportValue(item.otherId)}|CON_NOMBRE=${exportValue(item.otherName)}|SCORE=${item.score.toFixed(4)}|PORCENTAJE=${Math.round(item.score * 100)}`);
+        });
+      }
+      lines.push('SECCION_SIMILITUD_FIN: 1');
+      lines.push(`ALUMNO_FIN: ${studentIndex + 1}`);
+      lines.push('---');
+      lines.push('');
+    });
+
+    return `${lines.join('\n').trimEnd()}\n`;
   }
 
   function renderAll() {
@@ -1276,8 +1589,27 @@
       downloadTxt('progreso_evaluaciones.txt', backupText());
     });
 
+    dom.exportIssuesBtn.addEventListener('click', openExportIssuesDialog);
+
     dom.downloadReportBtn.addEventListener('click', () => {
       openDownloadSummary();
+    });
+
+    dom.includeDetectedErrors.addEventListener('change', updateExportIssuesStats);
+    dom.includeValidatedErrors.addEventListener('change', updateExportIssuesStats);
+
+    dom.cancelExportIssuesBtn.addEventListener('click', closeExportIssuesDialog);
+    dom.confirmExportIssuesBtn.addEventListener('click', () => {
+      const includeDetected = Boolean(dom.includeDetectedErrors.checked);
+      const includeValidated = Boolean(dom.includeValidatedErrors.checked);
+      if (!includeDetected && !includeValidated) {
+        alert('SELECCIONA AL MENOS UN TIPO DE ERROR PARA EXPORTAR.');
+        return;
+      }
+      closeExportIssuesDialog();
+      const txt = buildErrorsExportText(includeDetected, includeValidated);
+      downloadTxt(exportIssuesFilename(includeDetected, includeValidated), txt);
+      flash('ERRORES EXPORTADOS');
     });
 
     dom.cancelDownloadBtn.addEventListener('click', closeDownloadSummary);
@@ -1364,6 +1696,13 @@
       const inside = ev.clientX >= rect.left && ev.clientX <= rect.right
         && ev.clientY >= rect.top && ev.clientY <= rect.bottom;
       if (!inside) closeDownloadSummary();
+    });
+
+    dom.exportIssuesDialog.addEventListener('click', (ev) => {
+      const rect = dom.exportIssuesDialog.getBoundingClientRect();
+      const inside = ev.clientX >= rect.left && ev.clientX <= rect.right
+        && ev.clientY >= rect.top && ev.clientY <= rect.bottom;
+      if (!inside) closeExportIssuesDialog();
     });
 
     window.addEventListener('beforeunload', (ev) => {
