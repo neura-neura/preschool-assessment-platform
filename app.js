@@ -209,7 +209,7 @@
 
   function normalizeForRules(text, settings = state.settings, options = {}) {
     const safe = normalizeSettings(settings);
-    const { collapseSpaces = true, trimEdges = true } = options;
+    const { collapseSpaces = true, trimEdges = true, disallowedToSpace = true } = options;
     const source = removeAccentsKeepEnye(text);
     const out = [];
 
@@ -218,8 +218,11 @@
         out.push(' ');
         continue;
       }
-      if (charAllowedBySettings(ch, safe)) out.push(ch);
-      else out.push(' ');
+      if (charAllowedBySettings(ch, safe)) {
+        out.push(ch);
+      } else if (disallowedToSpace) {
+        out.push(' ');
+      }
     }
 
     let value = out.join('');
@@ -234,7 +237,7 @@
   }
 
   function sanitizeTextForTyping(text, settings = state.settings) {
-    return normalizeForRules(text, settings, { collapseSpaces: false, trimEdges: false });
+    return normalizeForRules(text, settings, { collapseSpaces: false, trimEdges: false, disallowedToSpace: false });
   }
 
   function hasForbiddenPunctuation(text, settings = state.settings) {
