@@ -207,8 +207,9 @@
     return false;
   }
 
-  function normalizeForRules(text, settings = state.settings) {
+  function normalizeForRules(text, settings = state.settings, options = {}) {
     const safe = normalizeSettings(settings);
+    const { collapseSpaces = true, trimEdges = true } = options;
     const source = removeAccentsKeepEnye(text);
     const out = [];
 
@@ -221,13 +222,19 @@
       else out.push(' ');
     }
 
-    let value = out.join('').replace(/\s{2,}/g, ' ').trim();
+    let value = out.join('');
+    if (collapseSpaces) value = value.replace(/\s{2,}/g, ' ');
+    if (trimEdges) value = value.trim();
     if (safe.forceUppercase) value = value.toUpperCase();
     return value;
   }
 
   function sanitizeText(text, settings = state.settings) {
     return normalizeForRules(text, settings);
+  }
+
+  function sanitizeTextForTyping(text, settings = state.settings) {
+    return normalizeForRules(text, settings, { collapseSpaces: false, trimEdges: false });
   }
 
   function hasForbiddenPunctuation(text, settings = state.settings) {
@@ -633,7 +640,7 @@
     textarea.addEventListener('paste', (ev) => {
       const txt = ev.clipboardData ? ev.clipboardData.getData('text') : '';
       ev.preventDefault();
-      const corrected = sanitizeText(txt, state.settings);
+      const corrected = sanitizeTextForTyping(txt, state.settings);
       if (!corrected) return;
       insertTextAtCursor(textarea, corrected);
     });
@@ -641,7 +648,7 @@
     textarea.addEventListener('drop', (ev) => {
       const txt = ev.dataTransfer ? ev.dataTransfer.getData('text') : '';
       ev.preventDefault();
-      const corrected = sanitizeText(txt, state.settings);
+      const corrected = sanitizeTextForTyping(txt, state.settings);
       if (!corrected) return;
       insertTextAtCursor(textarea, corrected);
     });
@@ -663,6 +670,7 @@
       const issuesBox = node.querySelector('.field-issues');
       const cleanBtn = node.querySelector('.clean-btn');
       const validateBtn = node.querySelector('.validate-btn');
+      const unvalidateBtn = node.querySelector('.unvalidate-btn');
 
       title.textContent = def.title;
       badge.textContent = `${def.min}-${def.max}`;
@@ -670,8 +678,15 @@
       attachSmartPaste(textarea);
 
       const refreshFieldState = () => {
-        const val = sanitizeText(textarea.value, state.settings);
-        if (val !== textarea.value) textarea.value = val;
+        const start = textarea.selectionStart || 0;
+        const end = textarea.selectionEnd || 0;
+        const val = sanitizeTextForTyping(textarea.value, state.settings);
+        if (val !== textarea.value) {
+          textarea.value = val;
+          const nextStart = Math.min(start, val.length);
+          const nextEnd = Math.min(end, val.length);
+          textarea.setSelectionRange(nextStart, nextEnd);
+        }
         student.fields[def.key] = val;
 
         const duplicateDataNow = getDuplicateData();
@@ -693,6 +708,7 @@
         issuesBox.textContent = activeIssues.map((x) => x.message).join(' | ');
         cleanBtn.disabled = !canClean;
         validateBtn.disabled = activeIssues.length === 0;
+        unvalidateBtn.disabled = getValidatedCodes(student, def.key).length === 0;
       };
 
       refreshFieldState();
@@ -716,6 +732,14 @@
         markDirty();
         renderAll();
         flash('ERRORES VALIDADOS EN EL CAMPO');
+      });
+
+      unvalidateBtn.addEventListener('click', () => {
+        if (getValidatedCodes(student, def.key).length === 0) return;
+        student.validated[def.key] = [];
+        markDirty();
+        renderAll();
+        flash('ERRORES DESVALIDADOS EN EL CAMPO');
       });
 
       cleanBtn.addEventListener('click', () => {

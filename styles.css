@@ -360,6 +360,7 @@ body.dark-mode {
   margin-top: 8px;
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .mini-btn {
